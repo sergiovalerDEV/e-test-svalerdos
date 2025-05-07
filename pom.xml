@@ -13,9 +13,10 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-		<!-- Actualizado a la versión compatible con CloudHub 2.0 -->
 		<app.runtime>4.9.3</app.runtime>
-		<mule.maven.plugin.version>4.4.0</mule.maven.plugin.version>
+		<mule.maven.plugin.version>4.3.0</mule.maven.plugin.version>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
 
 	<build>
@@ -32,7 +33,7 @@
 				<extensions>true</extensions>
 				<configuration>
 					<classifier>mule-application</classifier>
-					<cloudhub2Deployment>
+					<cloudHubV2Deployment>
 						<uri>https://anypoint.mulesoft.com</uri>
 						<provider>MC</provider>
 						<environment>Sandbox</environment>
@@ -46,17 +47,38 @@
 						<deploymentTimeout>300000</deploymentTimeout>
 						<skipDeploymentVerification>true</skipDeploymentVerification>
 						<javaVersion>17</javaVersion>
-						<deploymentSettings>
-							<enforceDeployingReplicasAcrossNodes>false</enforceDeployingReplicasAcrossNodes>
-							<updateStrategy>rolling</updateStrategy>
-						</deploymentSettings>
 						<properties>
-							<env>dev</env>
 							<secure.key>${decryption.key}</secure.key>
 							<encryption.key>${encryption.key}</encryption.key>
 						</properties>
-					</cloudhub2Deployment>
+					</cloudHubV2Deployment>
+					<sharedLibraries>
+						<!-- Añadido para resolver problemas de dependencias -->
+						<sharedLibrary>
+							<groupId>org.json</groupId>
+							<artifactId>json</artifactId>
+						</sharedLibrary>
+					</sharedLibraries>
 				</configuration>
+			</plugin>
+			<!-- Plugin para resolver problemas de dependencias -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.1.2</version>
+				<executions>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/lib</outputDirectory>
+							<includeScope>runtime</includeScope>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
@@ -80,6 +102,17 @@
 			<version>1.0.0</version>
 			<classifier>raml</classifier>
 			<type>zip</type>
+			<!-- Excluir la dependencia problemática -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.github.everit-org.json-schema</groupId>
+					<artifactId>org.everit.json.schema</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.everit.json</groupId>
+					<artifactId>org.everit.json.schema</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.mule.modules</groupId>
@@ -92,6 +125,12 @@
 			<artifactId>mule-secure-configuration-property-module</artifactId>
 			<version>1.2.7</version>
 			<classifier>mule-plugin</classifier>
+		</dependency>
+		<!-- Añadir dependencia alternativa para JSON Schema -->
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20220320</version>
 		</dependency>
 	</dependencies>
 
@@ -108,6 +147,17 @@
 			<url>https://repository.mulesoft.org/releases/</url>
 			<layout>default</layout>
 		</repository>
+		<repository>
+			<id>central</id>
+			<name>Maven Central</name>
+			<url>https://repo.maven.apache.org/maven2</url>
+			<layout>default</layout>
+		</repository>
+		<repository>
+			<id>jitpack.io</id>
+			<name>JitPack Repository</name>
+			<url>https://jitpack.io</url>
+		</repository>
 	</repositories>
 
 	<pluginRepositories>
@@ -116,6 +166,14 @@
 			<name>MuleSoft Releases Repository</name>
 			<layout>default</layout>
 			<url>https://repository.mulesoft.org/releases/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
+			<id>central</id>
+			<name>Maven Central</name>
+			<url>https://repo.maven.apache.org/maven2</url>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
