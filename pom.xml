@@ -59,7 +59,8 @@
 							<updateStrategy>rolling</updateStrategy>
 						</deploymentSettings>
 						<properties>
-							<secure.key>${decryption.key}</secure.key>
+							<encryption.key>${decryption.key}</encryption.key>
+							<!-- <secure.key>${decryption.key}</secure.key> -->
 						</properties>
 					</cloudhub2Deployment>
 				</configuration>
