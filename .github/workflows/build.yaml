@@ -90,3 +90,6 @@ jobs:
         -Ddeployment.target=Cloudhub-US-East-2 \
         -Dapp.runtime=4.9.3 \
         -Djava.version=17
+
+
+        
