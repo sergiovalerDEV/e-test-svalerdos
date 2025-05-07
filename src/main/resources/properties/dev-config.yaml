@@ -1,0 +1,8 @@
+e-test-svalerdos:
+  host: "p-test-svalerdos-proxy-g0uz3s.5sc6y6-1.usa-e2.cloudhub.io"
+  port: "443"
+  path:
+    accounts: "/accounts"
+  credentials:
+    client_id: "![ba938wBTeMULV03DUBkXD0HBF9qdltwbCa/6KCulPMYlqL2Bt0nK5A==]" 
+    client_secret: "![YR0i87EFV8dRprfccpV28sgIifOzGHapXI65gPWVaG4qBmbBBWPZnw==]" 
