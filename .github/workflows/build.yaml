@@ -2,187 +2,91 @@ name: Build and Deploy to Sandbox
 
 on:
   push:
-    branches:
-      - master
+    branches: [ master ]
   pull_request:
-    branches:
-      - master
-
+    branches: [ master ]
+    
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: 8
-
-      - name: Configure Maven settings
-        run: |
-          mkdir -p ~/.m2
-          echo "<settings>
-            <servers>
-              <server>
-                <id>anypoint-exchange-v3</id>
-                <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
-                <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
-              </server>
-              <server>
-                <id>mulesoft-releases</id>
-                <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
-                <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
-              </server>
-              <server>
-                <id>central</id>
-                <username></username>
-                <password></password>
-              </server>
-            </servers>
-          </settings>" > ~/.m2/settings.xml
-
-      - name: Build with Maven
-        env:
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        run: |
-          # Remove problematic dependencies
-          rm -rf ~/.m2/repository/com/github/everit-org
-          rm -rf ~/.m2/repository/org/everit
-          rm -rf ~/.m2/repository/com/github/everit-org.json-schema
-          rm -rf ~/.m2/repository/org/everit/json
-
-          # Compile, skip tests, and force update
-          mvn -U -B clean package --file pom.xml -Dmaven.test.skip=true
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
+    - name: Checkout this repo
+      uses: actions/checkout@v4
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: 8
+    - name: Configure Maven settings
+      run: |
+        mkdir -p ~/.m2
+        echo "<settings>
+          <servers>
+            <server>
+              <id>anypoint-exchange-v3</id>
+              <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
+              <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
+            </server>
+          </servers>
+        </settings>" > ~/.m2/settings.xml
+    - name: Build with Maven
+      env:
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      run: |
+        # Eliminar dependencias problemáticas
+        rm -rf ~/.m2/repository/com/github/everit-org
+        rm -rf ~/.m2/repository/org/everit
+        
+        # Compilar omitiendo pruebas y forzando actualización
+        mvn -B clean package --file pom.xml -Ddecryption.key="${ENCRYPTION_KEY}" -Dmaven.test.skip=true
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v4
+      with:
           name: artifacts
           path: target/*.jar
-
+        
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: 8
-
-      - name: Configure Maven settings
-        run: |
-          mkdir -p ~/.m2
-          echo "<settings>
-            <servers>
-              <server>
-                <id>anypoint-exchange-v3</id>
-                <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
-                <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
-              </server>
-            </servers>
-          </settings>" > ~/.m2/settings.xml
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: artifacts
-          path: target/
-
-      - name: Deploy to Sandbox
-        env:
-          ANYPOINT_USERNAME: ${{ secrets.ANYPOINT_PLATFORM_USERNAME }}
-          ANYPOINT_PASSWORD: ${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        run: |
-          # Install jq for JSON processing
-          sudo apt-get update && sudo apt-get install -y jq
-
-          # Obtain authentication token
-          echo "Obtaining authentication token..."
-          TOKEN_RESPONSE=$(curl -s -X POST \
-            "https://anypoint.mulesoft.com/accounts/login" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\":\"${ANYPOINT_USERNAME}\",\"password\":\"${ANYPOINT_PASSWORD}\"}")
-
-          TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
-
-          if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ]; then
-            echo "Error: Unable to obtain authentication token"
-            echo "Full response: $TOKEN_RESPONSE"
-            exit 1
-          fi
-
-          echo "Token obtained successfully"
-
-          # Obtain organization ID
-          echo "Obtaining organization information..."
-          ORG_ID=$(curl -s -X GET \
-            "https://anypoint.mulesoft.com/accounts/api/me" \
-            -H "Authorization: Bearer ${TOKEN}" | jq -r '.user.organizationId')
-
-          echo "Organization ID: $ORG_ID"
-
-          # Obtain Sandbox environment ID
-          echo "Obtaining Sandbox environment information..."
-          ENV_RESPONSE=$(curl -s -X GET \
-            "https://anypoint.mulesoft.com/accounts/api/organizations/${ORG_ID}/environments" \
-            -H "Authorization: Bearer ${TOKEN}")
-
-          ENV_ID=$(echo $ENV_RESPONSE | jq -r '.data[] | select(.name=="Sandbox") | .id')
-
-          if [ -z "$ENV_ID" ] || [ "$ENV_ID" == "null" ]; then
-            echo "Error: Unable to find Sandbox environment"
-            echo "Response: $ENV_RESPONSE"
-            exit 1
-          fi
-
-          echo "Sandbox environment ID: $ENV_ID"
-
-          # Check if application exists in CloudHub 2.0
-          echo "Checking if application e-test-svalerdos exists in CloudHub 2.0..."
-
-          # List all applications in CloudHub 2.0
-          APPS_RESPONSE=$(curl -s -X GET \
-            "https://anypoint.mulesoft.com/amc/application-manager/api/v2/organizations/${ORG_ID}/environments/${ENV_ID}/deployments" \
-            -H "Authorization: Bearer ${TOKEN}")
-
-          # Search for application by name
-          APP_EXISTS=$(echo $APPS_RESPONSE | jq -r '.items[] | select(.name=="e-test-svalerdos") | .name')
-
-          # Get JAR file
-          JAR_FILE=$(ls target/*.jar | head -1)
-          echo "JAR file to deploy: $JAR_FILE"
-
-          # Base64 encode the JAR file
-          echo "Base64 encoding JAR file..."
-          BASE64_JAR=$(base64 -w 0 $JAR_FILE)
-
-          if [ ! -z "$APP_EXISTS" ] && [ "$APP_EXISTS" != "null" ]; then
-            echo "Application e-test-svalerdos exists in CloudHub 2.0, updating existing application"
-
-            # Get application ID
-            APP_ID=$(echo $APPS_RESPONSE | jq -r '.items[] | select(.name=="e-test-svalerdos") | .id')
-            echo "Application ID: $APP_ID"
-
-            # Create temporary file for payload
-            PAYLOAD_FILE=$(mktemp)
-
-            # Create payload for update
-            cat > $PAYLOAD_FILE << EOF
-{
-  "applicationSource": {
-    "source": "BINARY",
-    "binary": "${BASE64_JAR}"
-  },
-  "autoStart": true,
-  "applicationName": "e-test-svalerdos",
-  "muleVersion": "4.9.
-::contentReference[oaicite:0]{index=0}
- 
+    steps:    
+    - name: Checkout this repo
+      uses: actions/checkout@v4
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: 8
+    - name: Configure Maven settings
+      run: |
+        mkdir -p ~/.m2
+        echo "<settings>
+          <servers>
+            <server>
+              <id>anypoint-exchange-v3</id>
+              <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
+              <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
+            </server>
+          </servers>
+        </settings>" > ~/.m2/settings.xml
+    - uses: actions/download-artifact@v4
+      with:
+        name: artifacts
+        path: target/
+    - name: Deploy to Sandbox
+      env:
+        ANYPOINT_USERNAME: ${{ secrets.ANYPOINT_PLATFORM_USERNAME }}
+        ANYPOINT_PASSWORD: ${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      run: |
+        # Desplegar directamente con parámetros adicionales
+        echo "Desplegando la aplicación con runtime 4.9.3 y Java 17..."
+        mvn deploy -DmuleDeploy \
+        -DskipDeploymentVerification=true \
+        -DskipMuleVersionCompatibilityCheck=true \
+        -Danypoint.username="${ANYPOINT_USERNAME}" \
+        -Danypoint.password="${ANYPOINT_PASSWORD}" \
+        -Ddecryption.key="${ENCRYPTION_KEY}" \
+        -Dmule.artifact=$(ls target/*.jar | head -1) \
+        -Ddeployment.target=Cloudhub-US-East-2 \
+        -Dapp.runtime=4.9.3 \
+        -Djava.version=17

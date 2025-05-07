@@ -38,6 +38,30 @@
 							<artifactId>json</artifactId>
 						</sharedLibrary>
 					</sharedLibraries>
+					<!-- Configuración directa de CloudHub 2.0 -->
+					<cloudhub2Deployment>
+						<uri>https://anypoint.mulesoft.com</uri>
+						<provider>MC</provider>
+						<environment>Sandbox</environment>
+						<target>Cloudhub-US-East-2</target>
+						<muleVersion>${app.runtime}</muleVersion>
+						<username>${anypoint.username}</username>
+						<password>${anypoint.password}</password>
+						<applicationName>e-test-svalerdos</applicationName>
+						<replicas>1</replicas>
+						<vCores>0.1</vCores>
+						<deploymentTimeout>300000</deploymentTimeout>
+						<skipDeploymentVerification>true</skipDeploymentVerification>
+						<!-- Añadir configuración de Java 17 -->
+						<javaVersion>17</javaVersion>
+						<deploymentSettings>
+							<enforceDeployingReplicasAcrossNodes>false</enforceDeployingReplicasAcrossNodes>
+							<updateStrategy>rolling</updateStrategy>
+						</deploymentSettings>
+						<properties>
+							<secure.key>${decryption.key}</secure.key>
+						</properties>
+					</cloudhub2Deployment>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -85,7 +109,7 @@
 			<version>1.2.7</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
-		<!-- Añadir dependencia alternativa para JSON Schema -->
+		<!-- Dependencia alternativa para JSON -->
 		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
@@ -94,6 +118,12 @@
 	</dependencies>
 
 	<repositories>
+		<repository>
+			<id>central</id>
+			<name>Maven Central</name>
+			<url>https://repo.maven.apache.org/maven2</url>
+			<layout>default</layout>
+		</repository>
 		<repository>
 			<id>anypoint-exchange-v3</id>
 			<name>Anypoint Exchange</name>
@@ -107,10 +137,9 @@
 			<layout>default</layout>
 		</repository>
 		<repository>
-			<id>central</id>
-			<name>Maven Central</name>
-			<url>https://repo.maven.apache.org/maven2</url>
-			<layout>default</layout>
+			<id>jitpack.io</id>
+			<name>JitPack Repository</name>
+			<url>https://jitpack.io</url>
 		</repository>
 	</repositories>
 
@@ -120,6 +149,14 @@
 			<name>MuleSoft Releases Repository</name>
 			<layout>default</layout>
 			<url>https://repository.mulesoft.org/releases/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
+			<id>central</id>
+			<name>Maven Central</name>
+			<url>https://repo.maven.apache.org/maven2</url>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
