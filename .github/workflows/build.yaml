@@ -27,16 +27,6 @@ jobs:
               <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
               <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
             </server>
-            <server>
-              <id>mulesoft-releases</id>
-              <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
-              <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
-            </server>
-            <server>
-              <id>central</id>
-              <username></username>
-              <password></password>
-            </server>
           </servers>
         </settings>" > ~/.m2/settings.xml
     - name: Build with Maven
@@ -46,11 +36,9 @@ jobs:
         # Eliminar dependencias problemáticas
         rm -rf ~/.m2/repository/com/github/everit-org
         rm -rf ~/.m2/repository/org/everit
-        rm -rf ~/.m2/repository/com/github/everit-org.json-schema
-        rm -rf ~/.m2/repository/org/everit/json
         
-        # Compilar omitiendo pruebas y forzando actualización
-        mvn -U -B clean package --file pom.xml -Ddecryption.key="${ENCRYPTION_KEY}" -Dencryption.key="${ENCRYPTION_KEY}" -Dmaven.test.skip=true
+        # Compilar omitiendo pruebas
+        mvn -B clean package --file pom.xml -Dmaven.test.skip=true
     - name: Upload artifact 
       uses: actions/upload-artifact@v4
       with:
@@ -78,16 +66,6 @@ jobs:
               <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
               <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
             </server>
-            <server>
-              <id>mulesoft-releases</id>
-              <username>${{ secrets.ANYPOINT_PLATFORM_USERNAME }}</username>
-              <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
-            </server>
-            <server>
-              <id>central</id>
-              <username></username>
-              <password></password>
-            </server>
           </servers>
         </settings>" > ~/.m2/settings.xml
     - uses: actions/download-artifact@v4
@@ -104,9 +82,9 @@ jobs:
         echo "Artefacto a desplegar:"
         ls -la target/
         
-        # Desplegar con método alternativo
-        echo "Desplegando la aplicación con método alternativo..."
-        mvn -U mule:deploy \
+        # Desplegar directamente con parámetros en línea de comandos
+        echo "Desplegando la aplicación..."
+        mvn deploy -DmuleDeploy \
         -Dmule.artifact=$(ls target/*.jar | head -1) \
         -Danypoint.username="${ANYPOINT_USERNAME}" \
         -Danypoint.password="${ANYPOINT_PASSWORD}" \
@@ -115,11 +93,9 @@ jobs:
         -Dapp.runtime=4.9.3 \
         -Dapp.name=e-test-svalerdos \
         -Denv=Sandbox \
-        -Ddeployment.target=Cloudhub-US-East-2 \
         -DdeploymentType=CLOUDHUB_V2 \
-        -DskipDeploymentVerification=true \
-        -DskipMuleVersionCompatibilityCheck=true \
+        -Ddeployment.target=Cloudhub-US-East-2 \
+        -Dreplicas=1 \
+        -DvCores=0.1 \
         -Djava.version=17 \
-        -Dmule.verbose.exceptions=true \
-        -Dmule.verbose.deployment=true \
-        -X
+        -DskipTests
