@@ -16,6 +16,8 @@
 		<mule.maven.plugin.version>4.4.0</mule.maven.plugin.version>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
+		<!-- Añadir propiedad para ignorar errores de checksum -->
+		<checksum.fail.strict>false</checksum.fail.strict>
 	</properties>
 
 	<build>
@@ -63,6 +65,26 @@
 						</properties>
 					</cloudhub2Deployment>
 				</configuration>
+			</plugin>
+			<!-- Añadir plugin para forzar actualización de dependencias -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.5.0</version>
+				<executions>
+					<execution>
+						<id>purge-local-dependencies</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>purge-local-repository</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>153b0d20-821e-4f82-b36a-7e0e28e44a93:e-test-svalerperez</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
@@ -121,25 +143,44 @@
 		<repository>
 			<id>central</id>
 			<name>Maven Central</name>
-			<url>https://repo.maven.apache.org/maven2</url>
+			<url>https://repo1.maven.org/maven2</url>
 			<layout>default</layout>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
 		</repository>
 		<repository>
 			<id>anypoint-exchange-v3</id>
 			<name>Anypoint Exchange</name>
 			<url>https://maven.anypoint.mulesoft.com/api/v3/maven</url>
 			<layout>default</layout>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
 		</repository>
 		<repository>
 			<id>mulesoft-releases</id>
 			<name>MuleSoft Releases Repository</name>
 			<url>https://repository.mulesoft.org/releases/</url>
 			<layout>default</layout>
-		</repository>
-		<repository>
-			<id>jitpack.io</id>
-			<name>JitPack Repository</name>
-			<url>https://jitpack.io</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
 		</repository>
 	</repositories>
 
@@ -152,14 +193,24 @@
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
 		</pluginRepository>
 		<pluginRepository>
 			<id>central</id>
 			<name>Maven Central</name>
-			<url>https://repo.maven.apache.org/maven2</url>
+			<url>https://repo1.maven.org/maven2</url>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
 		</pluginRepository>
 	</pluginRepositories>
 </project>

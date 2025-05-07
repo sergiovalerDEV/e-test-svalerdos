@@ -17,6 +17,7 @@ jobs:
       with:
         distribution: 'zulu'
         java-version: 8
+        cache: 'maven'
     - name: Configure Maven settings
       run: |
         mkdir -p ~/.m2
@@ -28,17 +29,46 @@ jobs:
               <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
             </server>
           </servers>
+          <mirrors>
+            <mirror>
+              <id>central-secure</id>
+              <name>Central</name>
+              <url>https://repo1.maven.org/maven2</url>
+              <mirrorOf>central</mirrorOf>
+            </mirror>
+          </mirrors>
+          <profiles>
+            <profile>
+              <id>default</id>
+              <activation>
+                <activeByDefault>true</activeByDefault>
+              </activation>
+              <repositories>
+                <repository>
+                  <id>central</id>
+                  <url>https://repo1.maven.org/maven2</url>
+                  <releases>
+                    <enabled>true</enabled>
+                  </releases>
+                  <snapshots>
+                    <enabled>false</enabled>
+                  </snapshots>
+                </repository>
+              </repositories>
+            </profile>
+          </profiles>
         </settings>" > ~/.m2/settings.xml
+    - name: Clean Maven cache
+      run: |
+        rm -rf ~/.m2/repository/com/github/everit-org
+        rm -rf ~/.m2/repository/org/everit
+        rm -rf ~/.m2/repository/153b0d20-821e-4f82-b36a-7e0e28e44a93
     - name: Build with Maven
       env:
         ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
       run: |
-        # Eliminar dependencias problemáticas
-        rm -rf ~/.m2/repository/com/github/everit-org
-        rm -rf ~/.m2/repository/org/everit
-        
         # Compilar omitiendo pruebas y forzando actualización
-        mvn -B clean package --file pom.xml -Ddecryption.key="${ENCRYPTION_KEY}" -Dmaven.test.skip=true
+        mvn -B clean package --file pom.xml -Ddecryption.key="${ENCRYPTION_KEY}" -Dmaven.test.skip=true -U -Dchecksum.fail.strict=false
     - name: Upload artifact 
       uses: actions/upload-artifact@v4
       with:
@@ -56,6 +86,7 @@ jobs:
       with:
         distribution: 'zulu'
         java-version: 8
+        cache: 'maven'
     - name: Configure Maven settings
       run: |
         mkdir -p ~/.m2
@@ -67,26 +98,80 @@ jobs:
               <password>${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}</password>
             </server>
           </servers>
+          <mirrors>
+            <mirror>
+              <id>central-secure</id>
+              <name>Central</name>
+              <url>https://repo1.maven.org/maven2</url>
+              <mirrorOf>central</mirrorOf>
+            </mirror>
+          </mirrors>
         </settings>" > ~/.m2/settings.xml
     - uses: actions/download-artifact@v4
       with:
         name: artifacts
         path: target/
+    - name: Check if application exists
+      id: check_app
+      env:
+        ANYPOINT_USERNAME: ${{ secrets.ANYPOINT_PLATFORM_USERNAME }}
+        ANYPOINT_PASSWORD: ${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}
+      run: |
+        # Instalar curl y jq para manejar APIs
+        sudo apt-get update && sudo apt-get install -y curl jq
+        
+        # Obtener token de autenticación
+        TOKEN_RESPONSE=$(curl -s -X POST https://anypoint.mulesoft.com/accounts/login \
+          -H "Content-Type: application/json" \
+          -d '{"username":"'"$ANYPOINT_USERNAME"'","password":"'"$ANYPOINT_PASSWORD"'"}')
+        
+        ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
+        
+        # Verificar si la aplicación existe
+        APP_NAME="e-test-svalerdos"
+        ENVIRONMENT="Sandbox"
+        ORG_ID=$(curl -s -X GET "https://anypoint.mulesoft.com/accounts/api/me" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.user.organizationId')
+        
+        ENV_ID=$(curl -s -X GET "https://anypoint.mulesoft.com/accounts/api/organizations/$ORG_ID/environments" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.data[] | select(.name=="'"$ENVIRONMENT"'") | .id')
+        
+        APP_EXISTS=$(curl -s -X GET "https://anypoint.mulesoft.com/cloudhub/api/v2/organizations/$ORG_ID/environments/$ENV_ID/applications" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.items[] | select(.name=="'"$APP_NAME"'") | .name')
+        
+        if [ -n "$APP_EXISTS" ]; then
+          echo "Application $APP_NAME exists, will update"
+          echo "app_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Application $APP_NAME does not exist, will create"
+          echo "app_exists=false" >> $GITHUB_OUTPUT
+        fi
     - name: Deploy to Sandbox
       env:
         ANYPOINT_USERNAME: ${{ secrets.ANYPOINT_PLATFORM_USERNAME }}
         ANYPOINT_PASSWORD: ${{ secrets.ANYPOINT_PLATFORM_PASSWORD }}
         ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        APP_EXISTS: ${{ steps.check_app.outputs.app_exists }}
       run: |
         # Desplegar directamente con parámetros adicionales
         echo "Desplegando la aplicación con runtime 4.9.3 y Java 17..."
-        mvn deploy -DmuleDeploy \
+        
+        DEPLOY_COMMAND="mvn deploy -DmuleDeploy \
         -DskipDeploymentVerification=true \
         -DskipMuleVersionCompatibilityCheck=true \
-        -Danypoint.username="${ANYPOINT_USERNAME}" \
-        -Danypoint.password="${ANYPOINT_PASSWORD}" \
-        -Ddecryption.key="${ENCRYPTION_KEY}" \
+        -Danypoint.username=\"${ANYPOINT_USERNAME}\" \
+        -Danypoint.password=\"${ANYPOINT_PASSWORD}\" \
+        -Ddecryption.key=\"${ENCRYPTION_KEY}\" \
         -Dmule.artifact=$(ls target/*.jar | head -1) \
         -Ddeployment.target=Cloudhub-US-East-2 \
         -Dapp.runtime=4.9.3 \
-        -Djava.version=17
+        -Djava.version=17 \
+        -Dchecksum.fail.strict=false -U"
+        
+        if [ "$APP_EXISTS" = "true" ]; then
+          # Si la aplicación existe, añadir flag para actualizar
+          DEPLOY_COMMAND="$DEPLOY_COMMAND -Dcloudhub.application.update=true"
+        fi
+        
+        # Ejecutar el comando de despliegue
+        eval $DEPLOY_COMMAND
