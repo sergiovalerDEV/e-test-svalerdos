@@ -142,38 +142,18 @@ jobs:
           # Desplegar como actualización
           echo "Actualizando aplicación existente..."
           mvn deploy -DmuleDeploy \
-          -Dmule.artifact=$(ls target/*.jar | head -1) \
           -Danypoint.username="${ANYPOINT_USERNAME}" \
           -Danypoint.password="${ANYPOINT_PASSWORD}" \
           -Ddecryption.key="${ENCRYPTION_KEY}" \
-          -Dencryption.key="${ENCRYPTION_KEY}" \
-          -Dapp.runtime=4.9.3 \
-          -Dapp.name=e-test-svalerdos \
-          -Denv=Sandbox \
-          -DdeploymentType=CLOUDHUB_V2 \
-          -Ddeployment.target=Cloudhub-US-East-2 \
-          -Dreplicas=1 \
-          -DvCores=0.1 \
-          -Djava.version=17 \
-          -DskipTests
+          -Dencryption.key="${ENCRYPTION_KEY}"
         else
           echo "La aplicación e-test-svalerdos no existe en CloudHub 2.0, se creará una nueva instancia"
           
           # Desplegar como nueva aplicación
           echo "Creando nueva aplicación..."
           mvn deploy -DmuleDeploy \
-          -Dmule.artifact=$(ls target/*.jar | head -1) \
           -Danypoint.username="${ANYPOINT_USERNAME}" \
           -Danypoint.password="${ANYPOINT_PASSWORD}" \
           -Ddecryption.key="${ENCRYPTION_KEY}" \
-          -Dencryption.key="${ENCRYPTION_KEY}" \
-          -Dapp.runtime=4.9.3 \
-          -Dapp.name=e-test-svalerdos \
-          -Denv=Sandbox \
-          -DdeploymentType=CLOUDHUB_V2 \
-          -Ddeployment.target=Cloudhub-US-East-2 \
-          -Dreplicas=1 \
-          -DvCores=0.1 \
-          -Djava.version=17 \
-          -DskipTests
+          -Dencryption.key="${ENCRYPTION_KEY}"
         fi
